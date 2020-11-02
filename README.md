@@ -1,0 +1,1 @@
+clone, then execute pipenv install --dev in root directory, then run on some WSGI server
