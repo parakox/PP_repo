@@ -1,0 +1,399 @@
+openapi: 3.0.0
+info:
+  version: 1.0.0
+  title: Online courses
+  description: 'Online courses'
+servers:
+# Added by API Auto Mocking Plugin
+- description: SwaggerHub API Auto Mocking
+  url: https://virtserver.swaggerhub.com/parakox/lab2/1.0.0
+- url: http://localhost:8080
+
+tags:
+- name: professors
+  description: about professors
+- name: students
+  description: about students
+- name: courses
+  description: about courses
+- name: requests
+  description: about requests
+
+
+paths:
+  /{professorId}:
+    get:
+      tags:
+      - professors
+      summary: Info about professor
+      description: Find professor
+      operationId: professors
+      parameters:
+      - name: professorId
+        in: path
+        description: Professor id
+        required: true
+        schema:
+          type: integer
+          format: int64
+      responses:
+        200:
+          description: successful operation
+          content:
+            application/xml:
+              schema:
+                $ref: '#/components/schemas/Professor'
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Professor'
+
+        400:
+          description: Invalid ID supplied
+          content: {}
+        404:
+          description: Professor not found
+          content: {}
+
+  /add_course:
+    post:
+      tags:
+      - professors
+      security:
+        - basicAuth: []
+      summary: Add a course
+      description: Add a course for the students
+      operationId: add_course
+      requestBody:
+        description: Course object that needs to be added to the store
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Course'
+
+        required: true
+      responses:
+        200:
+          description: status successful
+        405:
+          description: Invalid input
+
+  /update_course:
+    put:
+      tags:
+      - professors
+      security:
+        - basicAuth: []
+      summary: Update course
+      operationId: updateCourse
+      requestBody:
+        description: Course object that needs to be added to the store
+        content:
+          application/json:
+            schema:
+              title: Course
+              type: object
+              properties:
+                name:
+                  type: string
+                  description: Name of the course
+                author:
+                  type: string
+                  description: Author of the course
+                courseId:
+                  type: integer
+                students:
+                  type: array
+                  items:
+                    type: object
+                    properties:
+                      studentId:
+                        type: integer
+                        format: int64
+                      studentName:
+                        type: string
+        required: true
+
+      responses:
+        200:
+          description: Successful operation
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Course'
+        400:
+          description: Invalid ID supplied
+          content: {}
+        404:
+          description: Course not found
+          content: {}
+        405:
+          description: Validation exception
+          content: {}
+
+  /delete_course/{courseId}:
+    delete:
+      tags:
+      - professors
+      security:
+        - basicAuth: []
+      summary: Delete a course
+      operationId: deleteCourse
+      parameters:
+      - name: courseId
+        in: path
+        description: Course id to delete
+        required: true
+        schema:
+          type: integer
+          format: int64
+      responses:
+        400:
+          description: Invalid ID supplied
+          content: {}
+        404:
+          description: Course not found
+          content: {}
+
+  /my_courses:
+    get:
+      tags:
+        - professors
+      security:
+        - basicAuth: []
+      summary: Get my courses
+      operationId: getCourses
+      responses:
+        200:
+          description: successful operation
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Course'
+
+        400:
+          description: Invalid ID supplied
+          content: {}
+        404:
+          description: Courses not found
+          content: {}
+
+  /add_student:
+    put:
+      tags:
+      - professors
+      security:
+        - basicAuth: []
+      summary: Add student to a course
+      operationId: inviteStudents
+      parameters:
+      - name: courseId
+        in: query
+        description: Course id
+        required: true
+        schema:
+          type: integer
+          format: int64
+      - name: studentId
+        in: query
+        description: Student id
+        required: true
+        schema:
+          type: integer
+          format: int64
+
+      responses:
+        200:
+          description: successful operation
+      #     content:
+      #       application/json:
+      #         schema:
+      #           $ref: '#/components/schemas/Course'
+
+        '400':
+          description: Invalid ID supplied
+        '405':
+          description: Invalid input
+
+      requestBody:
+         content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Course'
+
+
+
+  /my_available_courses:
+    get:
+      tags:
+        - students
+      security:
+        - basicAuth: []
+      responses:
+        200:
+          description: successful operation
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Student'
+        400:
+          description: Invalid ID supplied
+          content: {}
+        404:
+          description: Course not found
+          content: {}
+
+
+  /request_course/{courseId}:
+    post:
+      tags:
+        - students
+      security:
+        - basicAuth: []
+      parameters:
+      - name: courseId
+        in: path
+        description: Course id
+        required: true
+        schema:
+          type: integer
+          format: int64
+      responses:
+        200:
+          description: successful operation
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Request'
+  /courses/{courseId}:
+    get:
+      tags:
+        - courses
+      security:
+        - basicAuth: []
+      parameters:
+      - name: courseId
+        in: path
+        description: Course id
+        required: true
+        schema:
+          type: integer
+          format: int64
+      responses:
+        200:
+          description: successful operation
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Course'
+        400:
+          description: No access
+          content: {}
+  /requests/{courseId}:
+    get:
+      tags:
+      - requests
+      security:
+        - basicAuth: []
+      summary: Get all requests for course
+      operationId: getInvites
+      parameters:
+      - name: courseId
+        in: path
+        description: Course id to select a course
+        required: true
+        schema:
+          type: integer
+          format: int64
+
+      responses:
+        200:
+          description: successful operation
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  all_invites:
+                    items:
+                     type: object
+                     properties:
+                      courseName:
+                        type: string
+                      courseId:
+                        type: integer
+                      request:
+                        type: array
+                        items:
+                          type: object
+                          properties:
+                            studentId:
+                              type: integer
+                            studentPermission:
+                              type: boolean
+
+        400:
+          description: Invalid ID supplied
+          content: {}
+        404:
+          description: Courses not found
+          content: {}
+
+
+
+components:
+  securitySchemes:
+    basicAuth:
+      type: http
+      scheme: basic
+
+  schemas:
+    Professor:
+      type: object
+      properties:
+        id:
+          type: integer
+        courses:
+          type: array
+          items:
+            properties:
+              students:
+                type: string
+              courseName:
+               type: string
+    Student:
+      type: object
+      properties:
+        id:
+          type: integer
+        available_courses:
+          type: array
+          items:
+            properties:
+              students:
+                type: string
+    Course:
+      type: object
+      properties:
+        id:
+          type: integer
+        authorId:
+          type: integer
+        students:
+          type: array
+          items:
+            properties:
+              id:
+                type: integer
+    Request:
+      type: object
+      properties:
+        studentId:
+          type: integer
+        courseId:
+          type: string
+        status:
+          type: string
+          enum:
+            - active
+            - canceled
+            - approved
