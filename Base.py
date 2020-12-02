@@ -1,13 +1,13 @@
 
 
-from sqlalchemy import Column, Integer, ForeignKey, Boolean, PrimaryKeyConstraint, Table
+from sqlalchemy import Column, Integer, ForeignKey, Boolean, Table
 from sqlalchemy.orm import relationship
 from sqlalchemy.ext.declarative import declarative_base
 Base = declarative_base()
 
 association_table = Table('course_student_relation', Base.metadata,
-    Column('course_id', Integer, ForeignKey('courses.id')),
-    Column('student_id', Integer, ForeignKey('students.id'))
+    Column('course_id', Integer, ForeignKey('courses.id'), primary_key=True),
+    Column('student_id', Integer, ForeignKey('students.id'), primary_key=True)
 )
 
 class Course(Base):
@@ -28,12 +28,8 @@ class Student(Base):
 
 class Request(Base):
     __tablename__ = 'requests'
-    studentId = Column(Integer, ForeignKey('students.id'))
-    courseId = Column(Integer, ForeignKey('courses.id'))
+    studentId = Column(Integer, ForeignKey('students.id'), primary_key=True)
+    courseId = Column(Integer, ForeignKey('courses.id'), primary_key=True)
     status = Column(Boolean)
-    __table_args__ = (
-        PrimaryKeyConstraint('studentId', 'courseId'),
-        {},
-    )
 
 
