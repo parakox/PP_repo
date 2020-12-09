@@ -7,6 +7,10 @@ verify_ssl = true
 
 [packages]
 flask = "*"
+alembic = "*"
+install = "*"
+psycopg2-binary = "*"
+flask-httpauth = "*"
 
 [requires]
 python_version = "3.8"
