@@ -4,6 +4,9 @@ info:
   title: Online courses
   description: 'Online courses'
 servers:
+# Added by API Auto Mocking Plugin
+- description: SwaggerHub API Auto Mocking
+  url: https://virtserver.swaggerhub.com/parakox/lab2/1.0.0
 - url: http://localhost:8080
 
 tags:
@@ -16,13 +19,12 @@ tags:
 - name: requests
   description: about requests
 
+
 paths:
   /{professorId}:
     get:
       tags:
       - professors
-      security:
-        - basicAuth: []
       summary: Info about professor
       description: Find professor
       operationId: professors
@@ -350,10 +352,6 @@ components:
       properties:
         id:
           type: integer
-        firstname:
-          type: string
-        lastname:
-          type: string
         courses:
           type: array
           items:
@@ -367,10 +365,6 @@ components:
       properties:
         id:
           type: integer
-        firstname:
-          type: string
-        lastname:
-          type: string
         available_courses:
           type: array
           items:
@@ -382,10 +376,8 @@ components:
       properties:
         id:
           type: integer
-        courseName:
-          type: string
-        author:
-          type: string
+        authorId:
+          type: integer
         students:
           type: array
           items:
