@@ -21,7 +21,7 @@ tags:
 
 
 paths:
-  /{professorId}:
+  /professors/{professorId}:
     get:
       tags:
       - professors
@@ -76,59 +76,6 @@ paths:
           description: status successful
         405:
           description: Invalid input
-
-  /update_course:
-    put:
-      tags:
-      - professors
-      security:
-        - basicAuth: []
-      summary: Update course
-      operationId: updateCourse
-      requestBody:
-        description: Course object that needs to be added to the store
-        content:
-          application/json:
-            schema:
-              title: Course
-              type: object
-              properties:
-                name:
-                  type: string
-                  description: Name of the course
-                author:
-                  type: string
-                  description: Author of the course
-                courseId:
-                  type: integer
-                students:
-                  type: array
-                  items:
-                    type: object
-                    properties:
-                      studentId:
-                        type: integer
-                        format: int64
-                      studentName:
-                        type: string
-        required: true
-
-      responses:
-        200:
-          description: Successful operation
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Course'
-        400:
-          description: Invalid ID supplied
-          content: {}
-        404:
-          description: Course not found
-          content: {}
-        405:
-          description: Validation exception
-          content: {}
 
   /delete_course/{courseId}:
     delete:

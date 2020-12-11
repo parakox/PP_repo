@@ -1,119 +1,188 @@
-from flask import Flask, g, request, make_response
-import sqlite3
-import os, shutil
-app = Flask(__name__)
 
-DATABASE = 'db/database.db'
+from flask import Flask, request, jsonify
+from flask_httpauth import HTTPBasicAuth
+import hashlib
+from Base import Professor,Student,Course,Request,User
+from sqlalchemy import create_engine
+from sqlalchemy.orm import sessionmaker
+engine = create_engine("postgresql://root:example@localhost:5432/pp")
+Session = sessionmaker(bind=engine)
+session = Session()
+auth = HTTPBasicAuth()
+app = Flask(__name__)
 
 @app.route('/api/v1/hello-world-28', methods = ['GET'])
 def hello():
     return "Hello World 28"
 
-@app.route('/api/v2/register', methods = ['POST'])
-def register_professor():
-    username = request.args.get('username')
-    password = request.args.get('password')
-    if username is not None and password is not None and len(get_professor_by_username(username)) == 0 and len(username) > 0 and len(password) > 0:
-        create_professor(username,password)
-        return "Successfully created"
-    return "Username is already in use or either username or password are empty",400
+@app.route('/register', methods = ['POST'])
+def register():
+    data = request.get_json()
+    try:
+        username = data['username']
+        password = data['password']
+        if session.query(User).filter_by(username = username).first() is None:
+            session.add(User(username, hashlib.md5(password.encode()).hexdigest()))
+            session.commit()
+            return 'Successful', 200
+        else:
+            return 'Username is already in use', 404
+    except:
+        return 'Invalid input', 405
 
-@app.route('/api/v2/login', methods = ['POST'])
-def login_professor():
-    username = request.args.get('username')
-    password = request.args.get('password')
-    if username is not None and password is not None and len(get_professor_by_username_and_password(username, password)) > 0:
-        resp = make_response()
-        resp.set_cookie("username", username)
-        return resp
-    return "Credentials are incorrect",400
+@auth.verify_password
+def verify_password(username, password):
+    return session.query(User).filter_by(username = username, password = hashlib.md5(password.encode()).hexdigest()).first() is not None
 
-@app.route('/api/v2/course/create', methods=['POST'])
-def create_course_api():
-    username = request.cookies.get("username")
-    title = request.args.get("title")
-    if username is not None and title is not None and len(get_professor_by_username(username)) > 0 and len(title) > 0 and len(get_course_by_title(title)) == 0:
-        create_course(title, username)
-        return "Successfully created"
-    return "Couldn't create course",400
+@app.route('/professors/<professorId>', methods = ['GET'])
+@auth.login_required
+def getProfessor(professorId):
+        professor = session.query(Professor).filter_by(id = int(professorId)).first()
+        if professor is None:
+            return "Professor not found", 404
+        courses = []
+        for course in professor.courses:
+            courses.append(course._asdict())
+        return jsonify(id = professor.id,owner = professor.owner,courses =professor.courses), 200
 
-@app.route('/api/v2/courses', methods=['GET'])
-def get_created_courses_by_professor():
-    username = request.cookies.get("username")
-    if username is not None and len(get_professor_by_username(username)) > 0:
-        return "Your courses\n" + str(get_professor_courses(username))
-    return "Couldn't get courses",400
+@app.route('/add_course', methods = ['POST'])
+@auth.login_required
+def addCourse():
+    professor = session.query(Professor).filter_by(owner = auth.current_user()).first()
+    if professor is None:
+        return 'You are not professor', 405
+    session.add(Course(professor.id))
+    session.commit()
+    return "Successful", 200
 
-@app.route('/api/v2/course/remove', methods = ['POST'])
-def remove_course_api():
-    username = request.cookies.get("username")
-    title = request.args.get("title")
-    if username is not None and title is not None and len(get_professor_by_username(username)) > 0 and len(get_course_by_title(title)) > 0 and get_username_assigned_to_course(title) == username:
-        remove_course(title)
-        return "Successfully deleted course"
-    return "Couldn't delete course",400
+@app.route('/delete_course/<id>', methods = ['POST'])
+@auth.login_required
+def deleteCourse(id):
+    try:
+        professor = session.query(Professor).filter_by(owner = auth.current_user()).first()
+        if professor is None:
+            return 'You are not professor', 405
+        for course in professor.courses:
+            if course.id == int(id):
+                session.delete(course)
+                session.commit()
+                return 'Successful', 200
+        return 'Course doesn\'t belong to professor'
+    except:
+        return 'Invalid ID supplied', 400
 
-@app.route('/api/v2/request/create_request', methods = ['POST'])
-def create_request_api():
-    surname = request.args.get("surname")
-    title = request.args.get("title")
-    if surname is not None and title is not None and len(get_student_by_surname(surname)) > 0 and len(get_course_by_title(title)) > 0 and len(get_request(surname,title)) == 0 and len(get_student_on_course(surname, title)) == 0:
-        create_request(surname, title)
-        return "Successfully created request"
-    return "Couldn't create request",400
+@app.route('/add_professor', methods = ['POST'])
+@auth.login_required
+def addProfessor():
+    if session.query(Professor).filter_by(owner=auth.current_user()).first() is None:
+        session.add(Professor(auth.current_user()))
+        session.commit()
+        return "Successful", 200
+    return "User is already professor", 404
 
-@app.route('/api/v2/request/accept_request', methods = ['POST'])
-def accept_request():
-    username = request.cookies.get("username")
-    surname = request.args.get("surname")
-    title = request.args.get("title")
-    if surname is not None and title is not None and len(get_student_by_surname(surname)) > 0 and len(get_course_by_title(title)) > 0 and username is not None and len(get_professor_by_username(username)) > 0 and get_username_assigned_to_course(title) == username and len(get_students_on_course(title)) < 5 and len(get_student_on_course(surname,title)) == 0 and len(get_request(surname,title)) > 0 :
-        add_student_to_course(surname, title)
-        remove_request(surname,title)
-        return "Successfully accepted request"
-    return "Couldn't accept request",400
+@app.route('/add_student', methods = ['POST'])
+@auth.login_required
+def addStudent():
+    if session.query(Student).filter_by(owner=auth.current_user()).first() is None:
+        session.add(Student(auth.current_user()))
+        session.commit()
+        return "Successful", 200
+    return "User is already student", 404
 
-@app.route('/api/v2/request/decline_request', methods = ['POST'])
-def decline_request():
-    username = request.cookies.get("username")
-    surname = request.args.get("surname")
-    title = request.args.get("title")
-    if surname is not None and title is not None and len(get_student_by_surname(surname)) > 0 and len(get_course_by_title(title)) > 0 and username is not None and len(get_professor_by_username(username)) > 0 and get_username_assigned_to_course(title) == username and len(get_request(surname,title)) > 0 :
-        remove_request(surname, title)
-        return "Successfully declined request"
-    return "Couldn't decline request",400
+@app.route('/my_courses', methods = ['GET'])
+@auth.login_required
+def getMyCourses():
+    professor = session.query(Professor).filter_by(owner=auth.current_user()).first()
+    if professor is not None:
+        courses = []
+        for course in professor.courses:
+            courses.append(course._asdict())
+        return jsonify(courses = courses), 200
+    return 'Courses not found', 404
 
-@app.route('/api/v2/student/create_student', methods = ['POST'])
-def create_student_api():
-    surname = request.args.get("surname")
-    if surname is not None and len(get_student_by_surname(surname)) == 0 and len(surname) > 0:
-        create_student(surname)
-        return "Successfully created student"
-    return "Couldn't create student",400
+@app.route('/my_available_courses', methods = ['GET'])
+@auth.login_required
+def getMyAvailableCourses():
+    student = session.query(Student).filter_by(owner=auth.current_user()).first()
+    if student is not None:
+        courses = []
+        for course in student.courses:
+            courses.append(course._asdict())
+        return jsonify(courses=courses), 200
+    return 'Courses not found', 404
 
-@app.route('/api/v2/student/get_courses', methods = ['GET'])
-def get_courses_for_student_api():
-    surname = request.args.get("surname")
-    if surname is not None and len(get_student_by_surname(surname)) > 0:
-        return "Your courses, student\n" + str(get_courses_for_student(surname))
-    return "Couldn't get your courses, student",400
+@app.route('/request_course/<courseId>', methods = ['POST'])
+@auth.login_required
+def requestCourse(courseId):
+    try:
+        courseId = int(courseId)
+    except:
+        return 'Invalid ID supplied', 400
+    student = session.query(Student).filter_by(owner=auth.current_user()).first()
+    if student is None:
+        return 'You are not student', 404
+    course = session.query(Course).filter_by(id = courseId).first()
+    if course is None:
+        return 'No course found', 403
+    if session.query(Request).filter_by(studentId = student.id, courseId = course.id).first() is not None:
+        return 'You already created request', 402
+    session.add(Request(course.id,student.id))
+    session.commit()
+    return 'Successful', 200
 
-@app.route('/api/v2/student/get_info_about_course', methods =['GET'])
-def get_info_about_course_api():
-    surname = request.args.get("surname")
-    title = request.args.get("title")
-    if surname is not None and title is not None and len(get_student_by_surname(surname)) > 0 and len(get_course_by_title(title)) > 0 and len(get_student_on_course(surname,title)) > 0 :
-        return "Info about course"
-    return "You don't have permission to see this info",400
-@app.route('/api/v2/course/change_title_of_course', methods = ['POST'])
-def change_title_of_course_api():
-    username = request.cookies.get("username")
-    title = request.args.get("title")
-    new_title = request.args.get("new_title")
-    if username is not None and title is not None and new_title is not None and len(get_course_by_title(title)) > 0 and len(get_professor_by_username(username)) > 0 and get_username_assigned_to_course(title) == username:
-        change_title_of_course(new_title, title)
-        return "Successfully changed title of course"
-    return "Couldn't change title of course",400
+@app.route('/accept_request/<courseId>/<studentId>', methods = ['POST'])
+@auth.login_required
+def acceptRequest(courseId, studentId):
+    try:
+        studentId = int(studentId)
+        courseId = int(courseId)
+    except:
+        return 'Invalid path variables', 406
+    request =  session.query(Request).filter_by(courseId = courseId, studentId = studentId).first()
+    if request is None:
+        return 'No such request', 405
+    if request.status:
+        return 'Request was already accepted', 404
+    student = session.query(Student).filter_by(id = studentId).first()
+    if student is None:
+        return 'Student no longer exists', 403
+    professor = session.query(Professor).filter_by(owner = auth.current_user()).first()
+    if professor is None:
+        return 'You are not professor', 402
+    for course in professor.courses:
+        if course.id == courseId:
+            if len(course.students) >= 5:
+                return 'Course has max amount of students', 401
+            course.students.append(student)
+            request.status = True
+            session.commit()
+            return 'Successful', 200
+    return 'Course doesn\'t belong to professor', 400
+
+@app.route('/courses/<courseId>', methods = ['GET'])
+@auth.login_required
+def getCourse(courseId):
+    try:
+        courseId = int(courseId)
+    except:
+        return 'Invalid ID supplied', 404
+    professor = session.query(Professor).filter_by(owner = auth.current_user()).first()
+    if professor is not None:
+        for course in professor.courses:
+            if course.id == courseId:
+                students = []
+                for studentt in course.students:
+                    students.append(studentt._asdict())
+                return jsonify(id=course.id, authorId=course.authorId, students=students), 200
+    student = session.query(Student).filter_by(owner = auth.current_user()).first()
+    if student is not None:
+        for course in student.courses:
+            if course.id == courseId:
+                students= []
+                for studentt in course.students:
+                    students.append(studentt._asdict())
+                return jsonify(id = course.id, authorId = course.authorId, students = students), 200
+    return 'No access to course', 403
 
 if __name__ == '__main__':
     app.run()
