@@ -26,9 +26,9 @@ def register():
             session.commit()
             return 'Successful', 200
         else:
-            return 'Username is already in use', 404
+            return 'Username is already in use', 200
     except:
-        return 'Invalid input', 405
+        return 'Invalid input', 404
 
 @auth.verify_password
 def verify_password(username, password):
